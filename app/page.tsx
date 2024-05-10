@@ -5,13 +5,25 @@ import {
   SignOutButton,
   SignedIn,
   SignedOut,
+  useOrganization,
+  useUser,
 } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 export default function Home() {
-  const files = useQuery(api.files.getTask);
-  const createFile = useMutation(api.files.createTask);
+  const { organization } = useOrganization();
+  const { user } = useUser();
+
+  let orgId = null;
+  console.log(organization, user);
+  if (organization && user) {
+    orgId = organization.id;
+  }
+
+  const files = useQuery(api.files.getFile, orgId ? { orgId } : "skip");
+  const createFile = useMutation(api.files.createFile);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <SignedIn>
@@ -28,11 +40,13 @@ export default function Home() {
         return <div key={file._id}>{file.name}</div>;
       })}
       <Button
-        onClick={() =>
+        onClick={() => {
+          if (!orgId) return;
           createFile({
             name: "Hello Ashu",
-          })
-        }
+            orgId: orgId,
+          });
+        }}
       >
         Click
       </Button>{" "}

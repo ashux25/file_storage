@@ -16,7 +16,6 @@ export default function Home() {
   const { user } = useUser();
 
   let orgId = null;
-  console.log(organization, user);
   if (organization && user) {
     orgId = organization.id;
   }
@@ -26,22 +25,14 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <SignedIn>
-        <SignOutButton>
-          <Button>Sign Out</Button>
-        </SignOutButton>
-      </SignedIn>
-      <SignedOut>
-        <SignInButton mode="modal">
-          <Button>Sign In</Button>
-        </SignInButton>
-      </SignedOut>
       {files?.map((file) => {
         return <div key={file._id}>{file.name}</div>;
       })}
       <Button
         onClick={() => {
-          if (!orgId) return;
+          if (!orgId) {
+            return;
+          }
           createFile({
             name: "Hello Ashu",
             orgId: orgId,
@@ -49,7 +40,7 @@ export default function Home() {
         }}
       >
         Click
-      </Button>{" "}
+      </Button>
     </main>
   );
 }

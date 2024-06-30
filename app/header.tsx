@@ -1,4 +1,10 @@
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import {
+  OrganizationSwitcher,
+  SignInButton,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
 export const Header = () => {
   return (
     <div className="border-b py-4 bg-gray-100">
@@ -7,6 +13,11 @@ export const Header = () => {
         <div className="flex gap-2">
           <OrganizationSwitcher />
           <UserButton />
+          <SignedOut>
+            <SignInButton>
+              <Button>Sign In</Button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </div>
     </div>

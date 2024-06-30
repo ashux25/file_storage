@@ -1,3 +1,4 @@
+import { log } from "console";
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
@@ -6,6 +7,8 @@ export const createFile = mutation({
 
   handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
+    console.log(user);
+
     if (!user) {
       throw new ConvexError("You must be logged In");
     }
@@ -24,7 +27,7 @@ export const getFile = query({
     if (!user) {
       return [];
     }
-    
+
     const task = await ctx.db
       .query("files")
       .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))

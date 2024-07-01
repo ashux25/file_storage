@@ -24,6 +24,9 @@ import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useToast } from "@/components/ui/use-toast";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   title: z.string().min(5).max(50),
@@ -35,6 +38,9 @@ const formSchema = z.object({
 export default function Home() {
   const organization = useOrganization();
   const user = useUser();
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,8 +52,39 @@ export default function Home() {
 
   const fileRef = form.register("file");
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!orgId) return;
+
+    const postUrl = await generateUploadUrl();
+    const result = await fetch(postUrl, {
+      method: "POST",
+      headers: { "Content-Type": values.file[0].type },
+      body: values.file[0],
+    });
+    const { storageId } = await result.json();
+    try {
+      await createFile({
+        name: values.title,
+        fileId: storageId,
+        orgId,
+      });
+
+      form.reset();
+
+      setIsFileDialogOpen(false);
+
+      toast({
+        variant: "success",
+        title: "file uploaded",
+        description: "good desc",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: "File could not be uploaded",
+      });
+    }
   }
 
   let orgId: string | undefined = undefined;
@@ -55,28 +92,22 @@ export default function Home() {
     orgId = organization.organization?.id ?? user.user?.id;
   }
 
-  const files = useQuery(api.files.getFile, orgId ? { orgId } : "skip");
+  const files = useQuery(api.files.getFiles, orgId ? { orgId } : "skip");
   const createFile = useMutation(api.files.createFile);
 
   return (
     <main className="container mx-auto pt-12">
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold">Your Files</h1>
-        <Dialog>
+        <Dialog
+          open={isFileDialogOpen}
+          onOpenChange={(isOpen) => {
+            setIsFileDialogOpen(isOpen);
+            form.reset();
+          }}
+        >
           <DialogTrigger asChild>
-            <Button
-              onClick={() => {
-                if (!orgId) {
-                  return;
-                }
-                createFile({
-                  name: "Hello Ashu",
-                  orgId: orgId,
-                });
-              }}
-            >
-              Upload
-            </Button>
+            <Button onClick={() => {}}>Upload</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -113,7 +144,16 @@ export default function Home() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit">Submit</Button>
+                    <Button
+                      disabled={form.formState.isSubmitting}
+                      type="submit"
+                      className="flex gap-2"
+                    >
+                      {form.formState.isSubmitting && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Submit
+                    </Button>
                   </form>
                 </Form>
               </DialogDescription>

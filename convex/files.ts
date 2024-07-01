@@ -40,9 +40,9 @@ export async function hasAccessToOrg(
   if (!user) {
     return null;
   }
-
+  console.log(user.orgIds, user.tokenIdentifier);
   const hasAccess =
-    user.orgIds.some((item) => item === orgId) ||
+    user.orgIds.some((item) => item.orgId === orgId) ||
     user.tokenIdentifier.includes(orgId);
 
   if (!hasAccess) {
@@ -57,8 +57,19 @@ export const createFile = mutation({
     name: v.string(),
     fileId: v.id("_storage"),
     orgId: v.string(),
+    type: fileTypes,
   },
   async handler(ctx, args) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .first();
+
+    if (!user) return null;
     const hasAccess = await hasAccessToOrg(ctx, args.orgId);
 
     if (!hasAccess) {
@@ -69,7 +80,7 @@ export const createFile = mutation({
       name: args.name,
       orgId: args.orgId,
       fileId: args.fileId,
-      userId: hasAccess.user._id,
+      type: args.type,
     });
   },
 });
@@ -91,7 +102,7 @@ export const getFiles = query({
 
     let files = await ctx.db
       .query("files")
-      // .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
       .collect();
 
     const query = args.query;
@@ -102,28 +113,22 @@ export const getFiles = query({
       );
     }
 
-    // if (args.favorites) {
-    //   const favorites = await ctx.db
-    //     .query("favorites")
-    //     .withIndex("by_userId_orgId_fileId", (q) =>
-    //       q.eq("userId", hasAccess.user._id).eq("orgId", args.orgId)
-    //     )
-    //     .collect();
+    if (args.favorites) {
+      const favorites = await ctx.db
+        .query("favorites")
+        .withIndex("by_userId_orgId_fileId", (q) =>
+          q.eq("userId", hasAccess.user._id).eq("orgId", args.orgId)
+        )
+        .collect();
 
-    //   files = files.filter((file) =>
-    //     favorites.some((favorite) => favorite.fileId === file._id)
-    //   );
-    // }
+      files = files.filter((file) =>
+        favorites.some((favorite) => favorite.fileId === file._id)
+      );
+    }
 
-    // if (args.deletedOnly) {
-    //   files = files.filter((file) => file.shouldDelete);
-    // } else {
-    //   files = files.filter((file) => !file.shouldDelete);
-    // }
-
-    // if (args.type) {
-    //   files = files.filter((file) => file.type === args.type);
-    // }
+    if (args.type) {
+      files = files.filter((file) => file.type === args.type);
+    }
 
     const filesWithUrl = await Promise.all(
       files.map(async (file) => ({
@@ -135,3 +140,22 @@ export const getFiles = query({
     return filesWithUrl;
   },
 });
+
+async function hasAccessToFile(
+  ctx: QueryCtx | MutationCtx,
+  fileId: Id<"files">
+) {
+  const file = await ctx.db.get(fileId);
+
+  if (!file) {
+    return null;
+  }
+
+  const hasAccess = await hasAccessToOrg(ctx, file.orgId);
+
+  if (!hasAccess) {
+    return null;
+  }
+
+  return { user: hasAccess.user, file };
+}

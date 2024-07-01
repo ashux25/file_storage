@@ -52,6 +52,11 @@ export default function Home() {
 
   const fileRef = form.register("file");
 
+  let orgId: string | undefined = undefined;
+  if (organization.isLoaded && user.isLoaded) {
+    orgId = organization.organization?.id ?? user.user?.id;
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!orgId) return;
 
@@ -66,13 +71,11 @@ export default function Home() {
       await createFile({
         name: values.title,
         fileId: storageId,
-        orgId,
+        orgId: orgId,
+        type: "image",
       });
-
       form.reset();
-
       setIsFileDialogOpen(false);
-
       toast({
         variant: "success",
         title: "file uploaded",
@@ -85,11 +88,6 @@ export default function Home() {
         description: "File could not be uploaded",
       });
     }
-  }
-
-  let orgId: string | undefined = undefined;
-  if (organization.isLoaded && user.isLoaded) {
-    orgId = organization.organization?.id ?? user.user?.id;
   }
 
   const files = useQuery(api.files.getFiles, orgId ? { orgId } : "skip");
